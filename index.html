@@ -6653,13 +6653,16 @@
         $('#eseryazar .question-footer').after('<div class="question-footer-2"></div>');
       }
 
+
       const eyModule = {
         initialized: false,
 
         init() {
           const $footer2 = $('#eseryazar .question-footer-2');
+          // donemFiltresiOlustur fonksiyonunun dışarıda tanımlı olduğunu varsayıyoruz
           donemFiltresiOlustur($footer2, state.ey.seciliDonemler, () => this.soruYukle());
           this.soruYukle();
+          this.initialized = true;
         },
 
         soruYukle() {
@@ -6667,24 +6670,33 @@
           const filtre = tumYazarlar.filter(y => state.ey.seciliDonemler.includes(y.dönem));
           if (!filtre.length) return;
 
+          // 1. Seçimleri yap (İsimleri tutarlı hale getirdik)
           const yazar = rastgele(filtre);
           const eser = rastgele(yazar.eserler);
 
-          // Bilgi modalı içeriği
+          // 2. Bilgi modalı içeriğini güncelle (i tuşu ve butona tıklandığında burası açılacak)
           state.ey.bilgi = `
-        <h3 style="margin:0 0 6px">${yazar.isim}</h3>
-        <p style="margin:0 0 10px; color:#666;"><b>Dönem:</b> ${yazar.dönem}</p>
-        <hr style="margin:0 0 10px">
-        <b>Eserleri:</b>
-        <ul style="margin:6px 0 0; padding-left:18px;">
-          ${yazar.eserler.map(e => `<li><b>${e.ad}:</b> ${e.tür.join(', ')}</li>`).join('')}
-        </ul>`;
+      <h3 style="margin:0 0 6px">${yazar.isim}</h3>
+      <p style="margin:0 0 10px; color:#666;"><b>Dönem:</b> ${yazar.dönem}</p>
+      <hr style="margin:0 0 10px">
+      <b>Eserleri:</b>
+      <ul style="margin:6px 0 0; padding-left:18px;">
+        ${yazar.eserler.map(e => `<li><b>${e.ad}:</b> ${e.tür.join(', ')}</li>`).join('')}
+      </ul>`;
 
-          // Soruyu yaz — eserin adı gösteriliyor
-          $sec.find('.work-name').text(eser.ad);
+          // 3. Eser adını ve bilgi butonunu bas (dogruEser hatası burada düzeltildi)
+          const $eserAlani = $sec.find('.work-name');
+          $eserAlani.html(`
+      ${eser.ad} 
+      <i class="fas fa-info-circle ey-bilgi-btn" 
+         style="cursor:pointer; color:#3498db; font-size:.85em; margin-left:6px;" 
+         title="Bilgi (I)"></i>
+    `);
+
+          // İpucu kısmını güncelle
           $sec.find('.question-hint').text(`${yazar.dönem} • ${eser.tür[0]}`);
 
-          // Yanlış şıklar → başka yazarların isimleri
+          // 4. Yanlış şıklar (Başka yazarların isimleri)
           const yanlisHavuz = tumYazarlar.filter(y => y.isim !== yazar.isim).map(y => y.isim);
           const yanlisSiklar = [];
           while (yanlisSiklar.length < 3) {
@@ -6692,21 +6704,32 @@
             if (!yanlisSiklar.includes(r)) yanlisSiklar.push(r);
           }
 
+          // 5. Şıkları harmanla
           const siklar = karistir([
             { metin: yazar.isim, dogru: true },
             ...yanlisSiklar.map(m => ({ metin: m, dogru: false }))
           ]);
 
+          // 6. Grid'e bas
           const $grid = $sec.find('.options-grid').empty();
           siklar.forEach((s, i) => {
+            // harf(i) fonksiyonunun dışarıda tanımlı olduğunu varsayıyoruz
             $grid.append(`
-          <button class="option-btn ey-opt" data-dogru="${s.dogru}">
-            <span class="option-letter">${harf(i)}</span>
-            <span class="option-text">${s.metin}</span>
-          </button>`);
+        <button class="option-btn ey-opt" data-dogru="${s.dogru}">
+          <span class="option-letter">${harf(i)}</span>
+          <span class="option-text">${s.metin}</span>
+        </button>`);
           });
         }
       };
+
+      // --- GEREKLİ EVENT DİNELEYİCİLER (Modülün dışında, bir kez çalışacak) ---
+
+      // Bilgi Butonuna Tıklama (Delegation kullanıyoruz)
+      // YENİ
+      $(document).on('click', '.ey-bilgi-btn', function () {
+        if (state.ey.bilgi) modalGoster(state.ey.bilgi);
+      });
 
       // Şık tıklaması — EY
       $(document).on('click', '#eseryazar .ey-opt', function () {
